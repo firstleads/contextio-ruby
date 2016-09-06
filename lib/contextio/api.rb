@@ -25,6 +25,7 @@ class ContextIO
 
     # @private
     BASE_URL = 'https://api.context.io'
+    DEFAULT_PARAMS = { :supply_access_token => true }
 
     # @return [String] The base URL the API is served from.
     def self.base_url
@@ -65,7 +66,7 @@ class ContextIO
 
     # @param [String] key The user's OAuth key for their Context.IO account.
     # @param [String] secret The user's OAuth secret for their Context.IO account.
-    # @param [Hash] opts Optional options for OAuth connections. ie. :timeout and :open_timeout are supported
+    # @param [Hash] opts Optional options for OAuth connections. ie. :timeout and :open_timeout are supported, as are :access_token and :access_token_secret for 3-legged OAuth.
     def initialize(key, secret, opts={})
       @key = key
       @secret = secret
@@ -129,7 +130,10 @@ class ContextIO
         normalized_params
       end
 
-      connection.send(method, path(resource_path), normalized_params, headers)
+      normalized_params = DEFAULT_PARAMS.merge(normalized_params)
+      supply_access_token = normalized_params.delete(:supply_access_token)
+
+      connection(supply_access_token).send(method, path(resource_path), normalized_params, headers)
     end
 
     # So that we can accept full URLs, this strips the domain and version number
@@ -164,11 +168,15 @@ class ContextIO
 
     # @!attribute [r] connection
     # @return [Faraday::Connection] A handle on the Faraday connection object.
-    def connection
+    def connection(supply_access_token)
       @connection ||= Faraday::Connection.new(base_url) do |faraday|
         faraday.headers['User-Agent'] = user_agent_string
 
-        faraday.request :oauth, consumer_key: key, consumer_secret: secret
+        if supply_access_token && @opts.include?(:access_token)
+          faraday.request :oauth, consumer_key: key, consumer_secret: secret, token: @opts[:access_token], token_secret: @opts[:access_token_secret]
+        else
+          faraday.request :oauth, consumer_key: key, consumer_secret: secret
+        end
         faraday.request :url_encoded
         faraday.request :retry, max: 0
 
