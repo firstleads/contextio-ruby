@@ -68,7 +68,7 @@ class ContextIO
     # @param [String] secret The user's OAuth secret for their Context.IO account.
     # @param [Hash] opts Optional options for OAuth connections. ie. :timeout and :open_timeout are supported, as are :access_token and :access_token_secret for 3-legged OAuth.
     def initialize(key, secret, opts={})
-      @oauth_opts = {token: key, token_secret: secret}
+      @oauth_opts = {consumer_key: key, consumer_secret: secret}
       @opts = opts || {}
       @access_token_opts = {}
       if @opts.include?(:access_token)
