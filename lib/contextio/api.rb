@@ -68,9 +68,13 @@ class ContextIO
     # @param [String] secret The user's OAuth secret for their Context.IO account.
     # @param [Hash] opts Optional options for OAuth connections. ie. :timeout and :open_timeout are supported, as are :access_token and :access_token_secret for 3-legged OAuth.
     def initialize(key, secret, opts={})
-      @key = key
-      @secret = secret
+      @oauth_opts = {token: key, token_secret: secret}
       @opts = opts || {}
+      @access_token_opts = {}
+      if @opts.include?(:access_token)
+        @access_token_opts[:token] = @opts.delete(:access_token)
+        @access_token_opts[:token_secret] = @opts.delete(:access_token_secret)
+      end
       @base_url = self.class.base_url
       @version = self.class.version
     end
@@ -172,10 +176,10 @@ class ContextIO
       @connection ||= Faraday::Connection.new(base_url) do |faraday|
         faraday.headers['User-Agent'] = user_agent_string
 
-        if supply_access_token && @opts.include?(:access_token)
-          faraday.request :oauth, consumer_key: key, consumer_secret: secret, token: @opts[:access_token], token_secret: @opts[:access_token_secret]
+        if supply_access_token
+          faraday.request :oauth, @oauth_opts.merge(@access_token_opts)
         else
-          faraday.request :oauth, consumer_key: key, consumer_secret: secret
+          faraday.request :oauth, @oauth_opts
         end
         faraday.request :url_encoded
         faraday.request :retry, max: 0
