@@ -58,7 +58,7 @@ describe ContextIO::API do
   describe ".new" do
     subject { ContextIO::API.new('test_key', 'test_secret', {a:'b'}) }
 
-    it "takes a key" do
+    it "takes a key and a secret" do
       expect(subject.key).to eq('test_key')
     end
 
@@ -68,6 +68,15 @@ describe ContextIO::API do
 
     it "takes an option hash" do
       expect(subject.opts).to eq(a:'b')
+    end
+
+    context "in 3-legged mode" do
+      subject { ContextIO::API.new('test_key', 'test_secret', {access_token: 'at', access_token_secret: 'ats', a: 'b'})}
+
+      it "recognizes the token and secret and move them aside" do
+        expect(subject.access_token_opts).to eq(token: 'at', token_secret: 'ats')
+        expect(subject.opts).to eq(a:'b')
+      end
     end
   end
 
@@ -112,6 +121,36 @@ describe ContextIO::API do
         subject.version = '2.5'
         subject.base_url = 'https://api.example.com'
         expect(subject.path('https://api.example.com/2.5/test_command')).to eq('/2.5/test_command')
+      end
+    end
+  end
+
+  describe "#connection" do
+    let(:api) { ContextIO::API.new('key', 'secret', access_token: 'at', access_token_secret: 'ats', timeout: 3, open_timeout: 1) }
+
+    context "with supply_access_token false" do
+
+      it "includes options" do
+        conn = api.send(:connection, false)
+        expect(conn.options[:timeout]).to eq(3)
+        expect(conn.options[:open_timeout]).to eq(1)
+      end
+
+      it "does not include access token options" do
+        allow_any_instance_of(::Faraday::Connection).to receive(:request)
+        expect_any_instance_of(::Faraday::Connection).to receive(:request).
+          with(:oauth, {consumer_key: 'key', consumer_secret: 'secret'})
+        conn = api.send(:connection, false)
+      end
+    end
+
+    context "with supply_access_token true" do
+      it "includes access token options" do
+        allow_any_instance_of(::Faraday::Connection).to receive(:request)
+        expect_any_instance_of(::Faraday::Connection).to receive(:request).
+          with(:oauth, {consumer_key: 'key', consumer_secret: 'secret',
+            token: 'at', token_secret: 'ats'})
+        conn = api.send(:connection, true)
       end
     end
   end

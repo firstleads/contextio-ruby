@@ -103,7 +103,7 @@ describe ContextIO::EmailSettings do
     end
 
     it "hits the right URL" do
-      expect(api).to receive(:request).with(:get, 'discovery', 'email' => 'email@email.com', 'source_type' => 'IMAP')
+      expect(api).to receive(:request).with(:get, 'discovery', 'email' => 'email@email.com', 'source_type' => 'IMAP', :supply_access_token => false)
 
       subject.send(:fetch_attributes)
     end

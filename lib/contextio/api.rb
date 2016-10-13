@@ -61,14 +61,18 @@ class ContextIO
     # @!attribute [r] secret
     #   @return [String] The OAuth secret for the user's Context.IO account.
     # @!attribute [r] opts
-    #   @return [Hash] opts Optional options for OAuth connections.
-    attr_reader :key, :secret, :opts
+    #   @return [Hash] Optional options for OAuth connections.
+    # @!attribute [r] access_token_opts
+    #   @return [Hash] Optional options for 3-legged OAuth connections.
+    attr_reader :key, :secret, :opts, :access_token_opts
 
     # @param [String] key The user's OAuth key for their Context.IO account.
     # @param [String] secret The user's OAuth secret for their Context.IO account.
     # @param [Hash] opts Optional options for OAuth connections. ie. :timeout and :open_timeout are supported, as are :access_token and :access_token_secret for 3-legged OAuth.
     def initialize(key, secret, opts={})
-      @oauth_opts = {consumer_key: key, consumer_secret: secret}
+      @key = key
+      @secret = secret
+      @oauth_creds = {consumer_key: key, consumer_secret: secret}
       @opts = opts || {}
       @access_token_opts = {}
       if @opts.include?(:access_token)
@@ -173,13 +177,13 @@ class ContextIO
     # @!attribute [r] connection
     # @return [Faraday::Connection] A handle on the Faraday connection object.
     def connection(supply_access_token)
-      @connection ||= Faraday::Connection.new(base_url) do |faraday|
+      @connection ||= Faraday.new(base_url, request: opts) do |faraday|
         faraday.headers['User-Agent'] = user_agent_string
 
         if supply_access_token
-          faraday.request :oauth, @oauth_opts.merge(@access_token_opts)
+          faraday.request :oauth, @oauth_creds.merge(access_token_opts)
         else
-          faraday.request :oauth, @oauth_opts
+          faraday.request :oauth, @oauth_creds
         end
         faraday.request :url_encoded
         faraday.request :retry, max: 0
